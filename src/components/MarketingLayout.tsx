@@ -1,11 +1,14 @@
 import { Link } from 'react-router-dom'
 import { Logo, Container } from '@/components'
+import { useAuth } from '@/context/AuthContext'
 
 interface MarketingLayoutProps {
   children: React.ReactNode
 }
 
 export function MarketingNavbar() {
+  const { user, loading, signOut } = useAuth()
+
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-slate-200">
       <Container>
@@ -25,18 +28,40 @@ export function MarketingNavbar() {
             >
               About
             </Link>
-            <Link
-              to="/login"
-              className="text-slate-600 hover:text-slate-900 font-medium px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors text-sm"
-            >
-              Log in
-            </Link>
-            <Link
-              to="/signup"
-              className="inline-flex items-center justify-center text-sm font-semibold px-4 py-2 rounded-lg bg-[var(--green)] text-white hover:bg-[var(--green-dark)] transition-colors"
-            >
-              Sign up
-            </Link>
+
+            {loading ? (
+              <div className="w-20 h-9 bg-slate-100 animate-pulse rounded-lg" />
+            ) : user ? (
+              <>
+                <Link
+                  to="/app"
+                  className="text-slate-600 hover:text-slate-900 font-medium px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors text-sm"
+                >
+                  Dashboard
+                </Link>
+                <button
+                  onClick={() => signOut()}
+                  className="inline-flex items-center justify-center text-sm font-semibold px-4 py-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+                >
+                  Log out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="text-slate-600 hover:text-slate-900 font-medium px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors text-sm"
+                >
+                  Log in
+                </Link>
+                <Link
+                  to="/signup"
+                  className="inline-flex items-center justify-center text-sm font-semibold px-4 py-2 rounded-lg bg-[var(--green)] text-white hover:bg-[var(--green-dark)] transition-colors"
+                >
+                  Sign up
+                </Link>
+              </>
+            )}
           </div>
         </nav>
       </Container>

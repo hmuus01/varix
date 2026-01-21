@@ -1,134 +1,264 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { supabase } from '@/lib/supabaseClient'
-import type { User } from '@supabase/supabase-js'
-import { Navbar, Container, Card, Button, Spinner } from '@/components'
+import { useAuth } from '@/context/AuthContext'
+import { Container, Card, Button, Spinner, Logo } from '@/components'
+
+interface DrawingFile {
+  id: string
+  name: string
+  storage_path: string
+  size_bytes: number
+  mime_type: string | null
+  created_at: string
+}
 
 export default function ProtectedApp() {
-  const [user, setUser] = useState<User | null>(null)
+  const { user, signOut } = useAuth()
+  const [files, setFiles] = useState<DrawingFile[]>([])
   const [loading, setLoading] = useState(true)
   const [loggingOut, setLoggingOut] = useState(false)
-  const navigate = useNavigate()
 
   useEffect(() => {
-    // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate('/login')
-      } else {
-        setUser(session.user)
-      }
-      setLoading(false)
-    })
+    fetchFiles()
+  }, [])
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        navigate('/login')
-      } else {
-        setUser(session.user)
-      }
-    })
+  const fetchFiles = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('drawing_files')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50)
 
-    return () => subscription.unsubscribe()
-  }, [navigate])
+    if (error) {
+      console.error('Error fetching files:', error)
+    } else {
+      setFiles(data || [])
+    }
+    setLoading(false)
+  }
+
+  const getSignedUrl = async (storagePath: string): Promise<string | null> => {
+    const { data, error } = await supabase.storage
+      .from('drawings')
+      .createSignedUrl(storagePath, 3600) // 1 hour expiry
+
+    if (error) {
+      console.error('Error creating signed URL:', error)
+      return null
+    }
+    return data.signedUrl
+  }
+
+  const handleViewFile = async (file: DrawingFile) => {
+    const url = await getSignedUrl(file.storage_path)
+    if (url) {
+      window.open(url, '_blank')
+    }
+  }
+
+  const handleDeleteFile = async (file: DrawingFile) => {
+    if (!confirm(`Delete "${file.name}"? This cannot be undone.`)) return
+
+    // Delete from storage
+    const { error: storageError } = await supabase.storage
+      .from('drawings')
+      .remove([file.storage_path])
+
+    if (storageError) {
+      console.error('Error deleting from storage:', storageError)
+      alert('Failed to delete file from storage')
+      return
+    }
+
+    // Delete from database
+    const { error: dbError } = await supabase
+      .from('drawing_files')
+      .delete()
+      .eq('id', file.id)
+
+    if (dbError) {
+      console.error('Error deleting from database:', dbError)
+      alert('Failed to delete file record')
+      return
+    }
+
+    // Refresh file list
+    setFiles((prev) => prev.filter((f) => f.id !== file.id))
+  }
 
   const handleLogout = async () => {
     setLoggingOut(true)
-    await supabase.auth.signOut()
-    navigate('/login')
+    await signOut()
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <Spinner size="lg" className="text-[var(--green)]" />
-          <p className="text-slate-600 font-medium">Loading...</p>
-        </div>
-      </div>
-    )
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  }
+
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
   }
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Navbar variant="app" user={user} onLogout={handleLogout} loading={loggingOut} />
+      {/* App Header */}
+      <header className="bg-white border-b border-slate-200">
+        <Container>
+          <nav className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-6">
+              <Logo />
+              <Link
+                to="/app"
+                className="text-[var(--green)] font-medium text-sm"
+              >
+                Dashboard
+              </Link>
+              <Link
+                to="/app/upload"
+                className="text-slate-600 hover:text-slate-900 font-medium text-sm"
+              >
+                Upload
+              </Link>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-slate-500 hidden sm:block">{user?.email}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                loading={loggingOut}
+              >
+                Log out
+              </Button>
+            </div>
+          </nav>
+        </Container>
+      </header>
 
       <main className="py-8 sm:py-12">
         <Container>
           {/* Welcome Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-              Welcome to Varix
-            </h1>
-            <p className="text-slate-600 mt-1">
-              Never miss a drawing change again.
-            </p>
-          </div>
-
-          {/* Main Action Card */}
-          <Card padding="lg" className="mb-8">
-            <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
-              <div className="flex-shrink-0 w-20 h-20 bg-emerald-50 rounded-2xl flex items-center justify-center">
-                <svg className="w-10 h-10 text-[var(--green)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <div className="flex-grow text-center sm:text-left">
-                <h2 className="text-xl font-semibold text-slate-900">
-                  Create a comparison set
-                </h2>
-                <p className="text-slate-600 mt-1">
-                  Upload one or more drawing revisions and let Varix highlight every change across versions.
-                </p>
-              </div>
-              <div className="flex-shrink-0">
-                <Button size="lg">
-                  Upload drawings
-                </Button>
-              </div>
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
+                Your Drawings
+              </h1>
+              <p className="text-slate-600 mt-1">
+                Manage and compare your uploaded drawing files.
+              </p>
             </div>
-          </Card>
-
-          {/* Empty State / Recent Comparisons */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Empty state cards */}
-            <Card padding="md" className="border-dashed border-2 border-slate-300 bg-slate-50/50">
-              <div className="text-center py-8">
-                <div className="w-12 h-12 bg-slate-200 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                </div>
-                <p className="text-slate-500 font-medium">No comparisons yet</p>
-                <p className="text-sm text-slate-400 mt-1">Upload your first drawing set</p>
-              </div>
-            </Card>
-
-            <Card padding="md" className="border-dashed border-2 border-slate-300 bg-slate-50/50 hidden sm:block">
-              <div className="text-center py-8">
-                <div className="w-12 h-12 bg-slate-200 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                </div>
-                <p className="text-slate-500 font-medium">Add more drawings</p>
-                <p className="text-sm text-slate-400 mt-1">Compare multiple revisions</p>
-              </div>
-            </Card>
-
-            <Card padding="md" className="border-dashed border-2 border-slate-300 bg-slate-50/50 hidden lg:block">
-              <div className="text-center py-8">
-                <div className="w-12 h-12 bg-slate-200 rounded-xl flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                </div>
-                <p className="text-slate-500 font-medium">Track changes</p>
-                <p className="text-sm text-slate-400 mt-1">Export and claim variations</p>
-              </div>
-            </Card>
+            <Link to="/app/upload">
+              <Button size="lg">
+                <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Upload drawings
+              </Button>
+            </Link>
           </div>
+
+          {/* File List */}
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Spinner size="lg" />
+            </div>
+          ) : files.length === 0 ? (
+            <Card padding="lg">
+              <div className="text-center py-12">
+                <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-10 h-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-semibold text-slate-900 mb-2">
+                  No drawings yet
+                </h2>
+                <p className="text-slate-600 mb-6">
+                  Upload your first drawing to get started with version comparison.
+                </p>
+                <Link to="/app/upload">
+                  <Button>Upload your first drawing</Button>
+                </Link>
+              </div>
+            </Card>
+          ) : (
+            <Card>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-100">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-900">
+                        Name
+                      </th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-900 hidden sm:table-cell">
+                        Size
+                      </th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-900 hidden md:table-cell">
+                        Uploaded
+                      </th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-900">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {files.map((file) => (
+                      <tr key={file.id} className="border-b border-slate-50 hover:bg-slate-50">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              {file.mime_type?.includes('pdf') ? (
+                                <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM8.5 15a.5.5 0 0 1 0-1h2a.5.5 0 0 1 0 1h-2zm0 2a.5.5 0 0 1 0-1h5a.5.5 0 0 1 0 1h-5zm0 2a.5.5 0 0 1 0-1h5a.5.5 0 0 1 0 1h-5z"/>
+                                </svg>
+                              ) : (
+                                <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                                </svg>
+                              )}
+                            </div>
+                            <span className="font-medium text-slate-900 truncate max-w-[200px] sm:max-w-none">
+                              {file.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-slate-600 hidden sm:table-cell">
+                          {formatFileSize(file.size_bytes)}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-slate-600 hidden md:table-cell">
+                          {formatDate(file.created_at)}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleViewFile(file)}
+                              className="text-sm font-medium text-[var(--green)] hover:text-[var(--green-dark)] px-2 py-1"
+                            >
+                              View
+                            </button>
+                            <button
+                              onClick={() => handleDeleteFile(file)}
+                              className="text-sm font-medium text-red-600 hover:text-red-700 px-2 py-1"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
 
           {/* Quick Tips Section */}
           <div className="mt-12">
@@ -139,8 +269,8 @@ export default function ProtectedApp() {
                   <span className="text-[var(--green)] font-semibold text-sm">1</span>
                 </div>
                 <div>
-                  <p className="font-medium text-slate-900 text-sm">Upload PDFs or DWGs</p>
-                  <p className="text-xs text-slate-500 mt-0.5">We support all major formats</p>
+                  <p className="font-medium text-slate-900 text-sm">Upload PDFs or images</p>
+                  <p className="text-xs text-slate-500 mt-0.5">We support PDF, PNG, and JPG</p>
                 </div>
               </div>
 

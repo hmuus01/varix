@@ -9,6 +9,8 @@ import About from '@/pages/About'
 import Contact from '@/pages/Contact'
 import Privacy from '@/pages/Privacy'
 import Terms from '@/pages/Terms'
+import Upload from '@/pages/Upload'
+import { ProtectedRoute, AuthRoute } from '@/components'
 import { isMissingEnvVars, isInvalidAnonKey } from '@/lib/supabaseClient'
 
 function EnvConfigError({ type }: { type: 'missing' | 'invalid' }) {
@@ -45,7 +47,7 @@ function EnvConfigError({ type }: { type: 'missing' | 'invalid' }) {
               <ol className="text-amber-700 text-sm space-y-2 list-decimal list-inside">
                 <li>Go to your <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline">Supabase Dashboard</a></li>
                 <li>Select your project → Settings → API</li>
-                <li>Copy the <strong>anon/public</strong> key (starts with <code className="bg-amber-100 px-1 rounded">eyJ...</code>)</li>
+                <li>Copy the <strong>anon/public</strong> key or <strong>publishable</strong> key</li>
                 <li>Update your <code className="bg-amber-100 px-1 rounded">.env.local</code> file</li>
               </ol>
             </div>
@@ -80,12 +82,13 @@ function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
 
-        {/* Auth pages */}
-        <Route path="/signup" element={<SignUp />} />
-        <Route path="/login" element={<Login />} />
+        {/* Auth pages - redirect to /app if already logged in */}
+        <Route path="/signup" element={<AuthRoute><SignUp /></AuthRoute>} />
+        <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
 
-        {/* App pages */}
-        <Route path="/app" element={<ProtectedApp />} />
+        {/* App pages - require authentication */}
+        <Route path="/app" element={<ProtectedRoute><ProtectedApp /></ProtectedRoute>} />
+        <Route path="/app/upload" element={<ProtectedRoute><Upload /></ProtectedRoute>} />
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />

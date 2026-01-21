@@ -6,10 +6,13 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undef
 // Check if env vars exist
 export const isMissingEnvVars = !supabaseUrl || !supabaseAnonKey
 
-// Validate anon key format (should be a JWT starting with eyJ)
-export const isInvalidAnonKey = supabaseAnonKey
-  ? !supabaseAnonKey.startsWith('eyJ')
-  : false
+// Validate key format: accept both legacy JWT (eyJ...) and new publishable keys (sb_publishable_...)
+function isValidSupabaseKey(key: string | undefined): boolean {
+  if (!key) return false
+  return key.startsWith('eyJ') || key.startsWith('sb_publishable_')
+}
+
+export const isInvalidAnonKey = supabaseAnonKey ? !isValidSupabaseKey(supabaseAnonKey) : false
 
 // Create client only if env vars are valid
 export const supabase: SupabaseClient = (isMissingEnvVars || isInvalidAnonKey)
