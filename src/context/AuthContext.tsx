@@ -22,11 +22,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setLoading(false)
-    })
+    // Get initial session with error handling
+    const initSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        if (error) {
+          console.error('Failed to get session:', error)
+        }
+        setSession(session)
+      } catch (err) {
+        console.error('Unexpected error getting session:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    initSession()
 
     // Subscribe to auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -42,8 +53,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = async () => {
-    await supabase.auth.signOut()
-    setSession(null)
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('Sign out error:', error)
+      }
+    } catch (err) {
+      console.error('Unexpected sign out error:', err)
+    } finally {
+      setSession(null)
+    }
   }
 
   const value: AuthContextType = {

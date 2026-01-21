@@ -18,6 +18,7 @@ export default function ProtectedApp() {
   const [files, setFiles] = useState<DrawingFile[]>([])
   const [loading, setLoading] = useState(true)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchFiles()
@@ -25,17 +26,26 @@ export default function ProtectedApp() {
 
   const fetchFiles = async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('drawing_files')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50)
+    setError(null)
 
-    if (error) {
-      console.error('Error fetching files:', error)
-    } else {
-      setFiles(data || [])
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('drawing_files')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (fetchError) {
+        console.error('Error fetching files:', fetchError)
+        setError('Failed to load your drawings. Please try again.')
+      } else {
+        setFiles(data || [])
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err)
+      setError('An unexpected error occurred. Please refresh the page.')
     }
+
     setLoading(false)
   }
 
@@ -55,11 +65,15 @@ export default function ProtectedApp() {
     const url = await getSignedUrl(file.storage_path)
     if (url) {
       window.open(url, '_blank')
+    } else {
+      setError('Failed to open file. Please try again.')
     }
   }
 
   const handleDeleteFile = async (file: DrawingFile) => {
     if (!confirm(`Delete "${file.name}"? This cannot be undone.`)) return
+
+    setError(null)
 
     // Delete from storage
     const { error: storageError } = await supabase.storage
@@ -68,7 +82,7 @@ export default function ProtectedApp() {
 
     if (storageError) {
       console.error('Error deleting from storage:', storageError)
-      alert('Failed to delete file from storage')
+      setError('Failed to delete file. Please try again.')
       return
     }
 
@@ -80,7 +94,7 @@ export default function ProtectedApp() {
 
     if (dbError) {
       console.error('Error deleting from database:', dbError)
-      alert('Failed to delete file record')
+      setError('Failed to delete file record. Please try again.')
       return
     }
 
@@ -164,6 +178,26 @@ export default function ProtectedApp() {
               </Button>
             </Link>
           </div>
+
+          {/* Error Alert */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+              <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-grow">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="text-red-500 hover:text-red-700"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
 
           {/* File List */}
           {loading ? (

@@ -71,17 +71,31 @@ export default function Upload() {
     return insertData
   }
 
+  const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
+
   const handleFiles = async (files: FileList | File[]) => {
     const fileArray = Array.from(files)
-    const validFiles = fileArray.filter((file) => {
+
+    // Filter by file type
+    const validTypeFiles = fileArray.filter((file) => {
       const ext = file.name.toLowerCase()
       return ext.endsWith('.pdf') || ext.endsWith('.png') || ext.endsWith('.jpg') || ext.endsWith('.jpeg')
     })
 
-    if (validFiles.length === 0) {
+    if (validTypeFiles.length === 0) {
       setError('Please upload PDF, PNG, or JPG files only.')
       return
     }
+
+    // Check file sizes
+    const oversizedFiles = validTypeFiles.filter((file) => file.size > MAX_FILE_SIZE)
+    if (oversizedFiles.length > 0) {
+      const names = oversizedFiles.map((f) => f.name).join(', ')
+      setError(`Files exceed 50MB limit: ${names}`)
+      return
+    }
+
+    const validFiles = validTypeFiles
 
     setError(null)
     setUploading(true)
