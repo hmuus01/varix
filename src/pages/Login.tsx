@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabaseClient'
+import { supabase, formatAuthError } from '@/lib/supabaseClient'
 import { Button, Input, Card, Logo } from '@/components'
 
 export default function Login() {
@@ -10,31 +10,40 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
 
+  useEffect(() => {
+    document.title = 'Log In | Varix'
+  }, [])
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
 
-    setLoading(false)
+      if (error) {
+        console.error('Login failed:', error.message, error)
+        setError(formatAuthError(error))
+        return
+      }
 
-    if (error) {
-      console.error('Login failed:', error.message, error)
-      setError(error.message)
-      return
+      navigate('/app')
+    } catch (err) {
+      console.error('Login error:', err)
+      setError(formatAuthError(err))
+    } finally {
+      setLoading(false)
     }
-
-    navigate('/app')
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       {/* Header */}
-      <header className="p-4">
+      <header className="p-4 sm:p-6">
         <Logo />
       </header>
 
@@ -75,10 +84,13 @@ export default function Login() {
 
             {error && (
               <div
-                className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm"
+                className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-start gap-3"
                 role="alert"
               >
-                {error}
+                <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{error}</span>
               </div>
             )}
 
