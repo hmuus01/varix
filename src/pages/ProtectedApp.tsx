@@ -19,6 +19,8 @@ export default function ProtectedApp() {
   const [loading, setLoading] = useState(true)
   const [loggingOut, setLoggingOut] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [viewingFileId, setViewingFileId] = useState<string | null>(null)
+  const [viewErrors, setViewErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     fetchFiles()
@@ -49,25 +51,61 @@ export default function ProtectedApp() {
     setLoading(false)
   }
 
-  const getSignedUrl = async (storagePath: string): Promise<string | null> => {
-    const { data, error } = await supabase.storage
-      .from('drawings')
-      .createSignedUrl(storagePath, 3600) // 1 hour expiry
-
-    if (error) {
-      console.error('Error creating signed URL:', error)
-      return null
-    }
-    return data.signedUrl
-  }
-
   const handleViewFile = async (file: DrawingFile) => {
-    const url = await getSignedUrl(file.storage_path)
-    if (url) {
-      window.open(url, '_blank')
-    } else {
-      setError('Failed to open file. Please try again.')
+    // Clear any previous error for this file
+    setViewErrors((prev) => {
+      const updated = { ...prev }
+      delete updated[file.id]
+      return updated
+    })
+    setViewingFileId(file.id)
+
+    // Dev mode logging
+    if (import.meta.env.DEV) {
+      console.log('Viewing file:', { name: file.name, storage_path: file.storage_path })
     }
+
+    try {
+      const { data, error: signedUrlError } = await supabase.storage
+        .from('drawings')
+        .createSignedUrl(file.storage_path, 600) // 10 minute expiry
+
+      if (signedUrlError) {
+        if (import.meta.env.DEV) {
+          console.error('createSignedUrl failed:', { error: signedUrlError, storage_path: file.storage_path })
+        }
+        setViewErrors((prev) => ({ ...prev, [file.id]: signedUrlError.message }))
+        setViewingFileId(null)
+        return
+      }
+
+      // Handle both possible property names (signedUrl vs signedURL)
+      const signedUrl = (data as { signedUrl?: string; signedURL?: string })?.signedUrl ??
+                        (data as { signedUrl?: string; signedURL?: string })?.signedURL
+
+      if (!signedUrl) {
+        setViewErrors((prev) => ({ ...prev, [file.id]: 'No signed URL returned' }))
+        setViewingFileId(null)
+        return
+      }
+
+      // Use anchor element approach (more reliable than window.open with noopener)
+      const link = document.createElement('a')
+      link.href = signedUrl
+      link.target = '_blank'
+      link.rel = 'noopener noreferrer'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      if (import.meta.env.DEV) {
+        console.error('View file error:', { error: err, storage_path: file.storage_path })
+      }
+      setViewErrors((prev) => ({ ...prev, [file.id]: message }))
+    }
+
+    setViewingFileId(null)
   }
 
   const handleDeleteFile = async (file: DrawingFile) => {
@@ -271,19 +309,34 @@ export default function ProtectedApp() {
                           {formatDate(file.created_at)}
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => handleViewFile(file)}
-                              className="text-sm font-medium text-[var(--green)] hover:text-[var(--green-dark)] px-2 py-1"
-                            >
-                              View
-                            </button>
-                            <button
-                              onClick={() => handleDeleteFile(file)}
-                              className="text-sm font-medium text-red-600 hover:text-red-700 px-2 py-1"
-                            >
-                              Delete
-                            </button>
+                          <div className="flex flex-col items-end gap-1">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleViewFile(file)}
+                                disabled={viewingFileId === file.id}
+                                className="text-sm font-medium text-[var(--green)] hover:text-[var(--green-dark)] disabled:opacity-50 disabled:cursor-not-allowed px-2 py-1 flex items-center gap-1"
+                              >
+                                {viewingFileId === file.id ? (
+                                  <>
+                                    <Spinner size="sm" />
+                                    <span>Opening...</span>
+                                  </>
+                                ) : (
+                                  'View'
+                                )}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteFile(file)}
+                                className="text-sm font-medium text-red-600 hover:text-red-700 px-2 py-1"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                            {viewErrors[file.id] && (
+                              <span className="text-xs text-red-600 max-w-[200px] truncate" title={viewErrors[file.id]}>
+                                View failed: {viewErrors[file.id]}
+                              </span>
+                            )}
                           </div>
                         </td>
                       </tr>
