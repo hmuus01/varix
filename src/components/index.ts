@@ -1,5 +1,6 @@
 export { default as Button } from './Button'
 export { default as Input } from './Input'
+export { default as PasswordInput } from './PasswordInput'
 export { Card, CardHeader, CardBody } from './Card'
 export { default as Container } from './Container'
 export { default as Section } from './Section'
