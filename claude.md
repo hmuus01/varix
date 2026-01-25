@@ -36,3 +36,4 @@ When asked to “improve design”:
 - Provide a short plan
 - Implement changes
 - Summarize files changed and why
+
