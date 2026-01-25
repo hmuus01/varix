@@ -3,6 +3,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase, formatAuthError } from '@/lib/supabaseClient'
 import { Button, PasswordInput, Card, Logo } from '@/components'
 
+interface RecoveryTokens {
+  accessToken: string
+  refreshToken: string
+}
+
 export default function ResetPassword() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -11,31 +16,34 @@ export default function ResetPassword() {
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [confirmError, setConfirmError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const [isValidSession, setIsValidSession] = useState<boolean | null>(null)
+  const [tokens, setTokens] = useState<RecoveryTokens | null>(null)
+  const [tokenError, setTokenError] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
     document.title = 'Reset Password | Varix'
 
-    // Check if we have a valid recovery session
-    // Supabase automatically handles the token from the URL hash
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setIsValidSession(!!session)
+    // Parse tokens from URL hash manually - DO NOT create a session
+    // The URL hash format is: #access_token=...&refresh_token=...&type=recovery
+    const hash = window.location.hash.substring(1)
+    const params = new URLSearchParams(hash)
+
+    const accessToken = params.get('access_token')
+    const refreshToken = params.get('refresh_token')
+    const type = params.get('type')
+
+    // Validate we have a recovery token
+    if (accessToken && refreshToken && type === 'recovery') {
+      setTokens({ accessToken, refreshToken })
+      // Clear the hash from URL for security (don't expose tokens)
+      window.history.replaceState(null, '', window.location.pathname)
+    } else {
+      setTokenError(true)
     }
 
-    checkSession()
-
-    // Listen for auth state changes (recovery token processed)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsValidSession(true)
-      } else if (session) {
-        setIsValidSession(true)
-      }
-    })
-
-    return () => subscription.unsubscribe()
+    // Sign out any existing session to ensure clean state
+    // This prevents the auto-login behavior
+    supabase.auth.signOut()
   }, [])
 
   // Password validation
@@ -81,6 +89,11 @@ export default function ResetPassword() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!tokens) {
+      setError('Invalid reset token. Please request a new password reset link.')
+      return
+    }
+
     // Validate all fields
     const isPasswordValid = validatePassword(password)
     const isConfirmValid = validateConfirmPassword(confirmPassword)
@@ -93,20 +106,37 @@ export default function ResetPassword() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: password,
+      // Step 1: Set session with the recovery tokens
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: tokens.accessToken,
+        refresh_token: tokens.refreshToken,
       })
 
-      if (error) {
-        console.error('Password update failed:', error.message)
-        setError(formatAuthError(error))
+      if (sessionError) {
+        console.error('Session error:', sessionError.message)
+        setError('This reset link has expired. Please request a new one.')
         return
       }
 
-      setSuccess(true)
+      // Step 2: Update the password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: password,
+      })
 
-      // Sign out after password reset so user can log in fresh
+      if (updateError) {
+        console.error('Password update failed:', updateError.message)
+        setError(formatAuthError(updateError))
+        // Sign out even on error to clear the temporary session
+        await supabase.auth.signOut()
+        return
+      }
+
+      // Step 3: Sign out immediately - user must log in with new password
       await supabase.auth.signOut()
+
+      // Clear tokens from state
+      setTokens(null)
+      setSuccess(true)
 
       // Redirect to login after a delay
       setTimeout(() => {
@@ -115,31 +145,15 @@ export default function ResetPassword() {
     } catch (err) {
       console.error('Password reset error:', err)
       setError(formatAuthError(err))
+      // Ensure we sign out on any error
+      await supabase.auth.signOut()
     } finally {
       setLoading(false)
     }
   }
 
-  // Show loading state while checking session
-  if (isValidSession === null) {
-    return (
-      <div className="min-h-screen flex flex-col bg-slate-50">
-        <header className="p-4 sm:p-6">
-          <Logo />
-        </header>
-        <main className="flex-grow flex items-center justify-center px-4 py-8">
-          <Card className="w-full max-w-md" padding="lg">
-            <div className="flex items-center justify-center py-8">
-              <div className="w-8 h-8 border-4 border-[var(--green)] border-t-transparent rounded-full animate-spin" />
-            </div>
-          </Card>
-        </main>
-      </div>
-    )
-  }
-
-  // Show error if no valid session
-  if (!isValidSession) {
+  // Show error if no valid tokens found
+  if (tokenError) {
     return (
       <div className="min-h-screen flex flex-col bg-slate-50">
         <header className="p-4 sm:p-6">
@@ -170,6 +184,24 @@ export default function ResetPassword() {
         <footer className="p-4 text-center text-sm text-slate-500">
           © 2025 Varix Intelligence Ltd
         </footer>
+      </div>
+    )
+  }
+
+  // Show loading state while parsing tokens
+  if (!tokens && !tokenError) {
+    return (
+      <div className="min-h-screen flex flex-col bg-slate-50">
+        <header className="p-4 sm:p-6">
+          <Logo />
+        </header>
+        <main className="flex-grow flex items-center justify-center px-4 py-8">
+          <Card className="w-full max-w-md" padding="lg">
+            <div className="flex items-center justify-center py-8">
+              <div className="w-8 h-8 border-4 border-[var(--green)] border-t-transparent rounded-full animate-spin" />
+            </div>
+          </Card>
+        </main>
       </div>
     )
   }
