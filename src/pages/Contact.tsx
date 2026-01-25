@@ -51,12 +51,14 @@ export default function Contact() {
                     type="text"
                     placeholder="John"
                     required
+                    maxLength={100}
                   />
                   <Input
                     label="Last name"
                     type="text"
                     placeholder="Smith"
                     required
+                    maxLength={100}
                   />
                 </div>
 
@@ -65,12 +67,14 @@ export default function Contact() {
                   type="email"
                   placeholder="john@company.com"
                   required
+                  maxLength={254}
                 />
 
                 <Input
                   label="Company"
                   type="text"
                   placeholder="Your company name"
+                  maxLength={200}
                 />
 
                 <div>
@@ -81,6 +85,7 @@ export default function Contact() {
                     rows={4}
                     placeholder="How can we help?"
                     required
+                    maxLength={2000}
                     className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-[var(--green)] focus:ring-[var(--green)]/20 resize-none"
                   />
                 </div>

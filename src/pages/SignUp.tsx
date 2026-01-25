@@ -272,6 +272,7 @@ export default function SignUp() {
                   required
                   autoComplete="email"
                   disabled={loading}
+                  maxLength={254}
                 />
 
                 <PasswordInput
@@ -289,6 +290,7 @@ export default function SignUp() {
                   autoComplete="new-password"
                   disabled={loading}
                   showStrength
+                  maxLength={128}
                 />
 
                 <PasswordInput
@@ -304,6 +306,7 @@ export default function SignUp() {
                   required
                   autoComplete="new-password"
                   disabled={loading}
+                  maxLength={128}
                 />
 
                 {/* Terms Checkbox */}

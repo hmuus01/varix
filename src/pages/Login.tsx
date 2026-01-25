@@ -7,8 +7,7 @@ import { Button, Input, PasswordInput, Card, Logo } from '@/components'
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [rememberMe, setRememberMe] = useState(false)
-  const [loading, setLoading] = useState(false)
+    const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [emailError, setEmailError] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -185,6 +184,7 @@ export default function Login() {
               required
               autoComplete="email"
               disabled={loading}
+              maxLength={254}
             />
 
             <div>
@@ -196,17 +196,9 @@ export default function Login() {
                 required
                 autoComplete="current-password"
                 disabled={loading}
+                maxLength={128}
               />
-              <div className="mt-2 flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded border-slate-300 text-[var(--green)] focus:ring-[var(--green)] focus:ring-offset-0"
-                  />
-                  <span className="text-sm text-slate-600">Remember me</span>
-                </label>
+              <div className="mt-2 text-right">
                 <Link
                   to="/forgot-password"
                   className="text-sm text-[var(--green)] hover:underline font-medium"

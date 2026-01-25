@@ -92,6 +92,7 @@ export default function ForgotPassword() {
                   required
                   autoComplete="email"
                   disabled={loading}
+                  maxLength={254}
                 />
 
                 {error && (

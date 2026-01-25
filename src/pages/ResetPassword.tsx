@@ -262,6 +262,7 @@ export default function ResetPassword() {
                   autoComplete="new-password"
                   disabled={loading}
                   showStrength
+                  maxLength={128}
                 />
 
                 <PasswordInput
@@ -277,6 +278,7 @@ export default function ResetPassword() {
                   required
                   autoComplete="new-password"
                   disabled={loading}
+                  maxLength={128}
                 />
 
                 {error && (
