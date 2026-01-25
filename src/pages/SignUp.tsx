@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase, formatAuthError } from '@/lib/supabaseClient'
+import { getAuthRedirectUrl } from '@/lib/siteUrl'
 import { Button, Input, PasswordInput, Card, Logo } from '@/components'
 
 export default function SignUp() {
@@ -100,6 +101,9 @@ export default function SignUp() {
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
+        options: {
+          emailRedirectTo: getAuthRedirectUrl('/app'),
+        },
       })
 
       if (error) {
@@ -134,7 +138,7 @@ export default function SignUp() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/app`,
+          redirectTo: getAuthRedirectUrl('/app'),
         },
       })
 
@@ -153,7 +157,7 @@ export default function SignUp() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
-          redirectTo: `${window.location.origin}/app`,
+          redirectTo: getAuthRedirectUrl('/app'),
         },
       })
 

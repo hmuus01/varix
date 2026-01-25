@@ -3,6 +3,7 @@ import Home from '@/pages/Home'
 import SignUp from '@/pages/SignUp'
 import Login from '@/pages/Login'
 import ForgotPassword from '@/pages/ForgotPassword'
+import ResetPassword from '@/pages/ResetPassword'
 import ProtectedApp from '@/pages/ProtectedApp'
 import NotFound from '@/pages/NotFound'
 import Pricing from '@/pages/Pricing'
@@ -87,6 +88,7 @@ function App() {
         <Route path="/signup" element={<AuthRoute><SignUp /></AuthRoute>} />
         <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
         <Route path="/forgot-password" element={<AuthRoute><ForgotPassword /></AuthRoute>} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* App pages - require authentication */}
         <Route path="/app" element={<ProtectedRoute><ProtectedApp /></ProtectedRoute>} />
