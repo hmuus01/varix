@@ -1,11 +1,11 @@
 # Robots.txt for Varix
-# https://varix.io
+# https://varixai.com
 
 User-agent: *
 Allow: /
 
 # Sitemap
-Sitemap: https://varix.io/sitemap.xml
+Sitemap: https://varixai.com/sitemap.xml
 
 # Disallow admin/app areas from indexing
 Disallow: /app/
