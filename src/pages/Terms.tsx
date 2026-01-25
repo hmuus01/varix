@@ -86,7 +86,7 @@ export default function Terms() {
 
               <h2 className="text-xl font-semibold text-slate-900 mt-8 mb-4">10. Contact</h2>
               <p className="text-slate-600">
-                For questions about these Terms, contact us at legal@varix.io
+                For questions about these Terms, contact us at legal@varixai.com
               </p>
             </div>
           </div>

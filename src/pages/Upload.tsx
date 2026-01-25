@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Container, Button, Card, CardBody, Spinner, Logo } from '@/components'
 import { useAuth } from '@/context/AuthContext'
 import { supabase } from '@/lib/supabaseClient'
@@ -14,8 +14,7 @@ interface UploadedFile {
 
 export default function Upload() {
   const { user, signOut } = useAuth()
-  const navigate = useNavigate()
-  const fileInputRef = useRef<HTMLInputElement>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [isDragging, setIsDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -263,7 +262,7 @@ export default function Upload() {
 
         {/* Upload Zone */}
         <Card className="mb-8">
-          <CardBody padding="lg">
+          <CardBody className="p-8">
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}

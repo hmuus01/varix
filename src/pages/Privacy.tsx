@@ -79,7 +79,7 @@ export default function Privacy() {
                 If you have any questions about this Privacy Policy, please contact us at:
               </p>
               <p className="text-slate-600">
-                <strong>Email:</strong> privacy@varix.io<br />
+                <strong>Email:</strong> privacy@varixai.com<br />
                 <strong>Address:</strong> Varix Intelligence Ltd, London, UK
               </p>
             </div>

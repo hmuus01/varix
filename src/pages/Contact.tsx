@@ -98,10 +98,10 @@ export default function Contact() {
               Prefer email?
             </p>
             <a
-              href="mailto:hello@varix.io"
+              href="mailto:hello@varixai.com"
               className="text-[var(--green)] font-semibold hover:underline"
             >
-              hello@varix.io
+              hello@varixai.com
             </a>
           </div>
         </Container>
