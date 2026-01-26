@@ -102,7 +102,7 @@ export default function SignUp() {
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: getAuthRedirectUrl('/app'),
+          emailRedirectTo: getAuthRedirectUrl('/auth/callback'),
         },
       })
 
@@ -138,7 +138,7 @@ export default function SignUp() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: getAuthRedirectUrl('/app'),
+          redirectTo: getAuthRedirectUrl('/auth/callback'),
         },
       })
 
@@ -157,7 +157,7 @@ export default function SignUp() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
-          redirectTo: getAuthRedirectUrl('/app'),
+          redirectTo: getAuthRedirectUrl('/auth/callback'),
         },
       })
 

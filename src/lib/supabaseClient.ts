@@ -15,9 +15,17 @@ function isValidSupabaseKey(key: string | undefined): boolean {
 export const isInvalidAnonKey = supabaseAnonKey ? !isValidSupabaseKey(supabaseAnonKey) : false
 
 // Create client only if env vars are valid
+// CRITICAL SECURITY: detectSessionInUrl is FALSE to prevent auto-login on password reset
+// OAuth and email confirmation flows are handled manually in their respective pages
 export const supabase: SupabaseClient = (isMissingEnvVars || isInvalidAnonKey)
   ? (null as unknown as SupabaseClient)
-  : createClient(supabaseUrl!, supabaseAnonKey!)
+  : createClient(supabaseUrl!, supabaseAnonKey!, {
+      auth: {
+        detectSessionInUrl: false, // Prevent auto-session from URL tokens
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+    })
 
 /**
  * Helper to format Supabase auth errors into user-friendly messages

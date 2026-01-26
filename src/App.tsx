@@ -4,6 +4,7 @@ import SignUp from '@/pages/SignUp'
 import Login from '@/pages/Login'
 import ForgotPassword from '@/pages/ForgotPassword'
 import ResetPassword from '@/pages/ResetPassword'
+import AuthCallback from '@/pages/AuthCallback'
 import ProtectedApp from '@/pages/ProtectedApp'
 import NotFound from '@/pages/NotFound'
 import Pricing from '@/pages/Pricing'
@@ -89,6 +90,7 @@ function App() {
         <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
         <Route path="/forgot-password" element={<AuthRoute><ForgotPassword /></AuthRoute>} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
 
         {/* App pages - require authentication */}
         <Route path="/app" element={<ProtectedRoute><ProtectedApp /></ProtectedRoute>} />
