@@ -177,6 +177,10 @@ export default function Upload() {
       console.log('Viewing file:', { name: file.name, storage_path: file.path })
     }
 
+    // Open window immediately on user click to avoid popup blocker
+    // We'll set the URL after getting the signed URL
+    const newWindow = window.open('about:blank', '_blank')
+
     try {
       const { data, error: signedUrlError } = await supabase.storage
         .from('drawings')
@@ -187,6 +191,7 @@ export default function Upload() {
           console.error('createSignedUrl failed:', { error: signedUrlError, storage_path: file.path })
         }
         setViewErrors((prev) => ({ ...prev, [file.id]: signedUrlError.message }))
+        newWindow?.close()
         setViewingFileId(null)
         return
       }
@@ -197,24 +202,25 @@ export default function Upload() {
 
       if (!signedUrl) {
         setViewErrors((prev) => ({ ...prev, [file.id]: 'No signed URL returned' }))
+        newWindow?.close()
         setViewingFileId(null)
         return
       }
 
-      // Use anchor element approach (more reliable than window.open with noopener)
-      const link = document.createElement('a')
-      link.href = signedUrl
-      link.target = '_blank'
-      link.rel = 'noopener noreferrer'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      // Navigate the already-opened window to the signed URL
+      if (newWindow) {
+        newWindow.location.href = signedUrl
+      } else {
+        // Fallback if popup was blocked
+        setViewErrors((prev) => ({ ...prev, [file.id]: 'Popup blocked. Please allow popups for this site.' }))
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
       if (import.meta.env.DEV) {
         console.error('View file error:', { error: err, storage_path: file.path })
       }
       setViewErrors((prev) => ({ ...prev, [file.id]: message }))
+      newWindow?.close()
     }
 
     setViewingFileId(null)

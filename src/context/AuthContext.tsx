@@ -11,6 +11,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+/**
+ * Check if we're on the password reset page with recovery tokens.
+ * In this case, we should NOT auto-create a session - the ResetPassword
+ * component will handle the tokens manually for security.
+ */
+function isPasswordRecoveryFlow(): boolean {
+  if (typeof window === 'undefined') return false
+
+  const isResetPage = window.location.pathname === '/reset-password'
+  const hash = window.location.hash
+  const hasRecoveryToken = hash.includes('type=recovery')
+
+  return isResetPage && hasRecoveryToken
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
@@ -25,6 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Get initial session with error handling
     const initSession = async () => {
       try {
+        // If we're in password recovery flow, don't get/set session
+        // The ResetPassword component handles this manually
+        if (isPasswordRecoveryFlow()) {
+          setLoading(false)
+          return
+        }
+
         const { data: { session }, error } = await supabase.auth.getSession()
         if (error) {
           console.error('Failed to get session:', error)
@@ -41,7 +63,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Subscribe to auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        // Don't auto-login for password recovery - ResetPassword handles it
+        if (event === 'PASSWORD_RECOVERY' && isPasswordRecoveryFlow()) {
+          // Sign out immediately to prevent auto-login
+          supabase.auth.signOut()
+          return
+        }
+
         setSession(session)
       }
     )
